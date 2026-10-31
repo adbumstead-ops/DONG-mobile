@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:
@@ -26,18 +26,23 @@ jobs:
           cat DONG_Mobile_v0_1/buildozer.spec
           echo "----------------------"
 
-      - name: Build APK with Buildozer
-        id: buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        with:
-          command: buildozer -v android debug
-          repository_root: .
-          workdir: DONG_Mobile_v0_1
-          buildozer_version: stable
+      - name: Pull official Buildozer image
+        run: docker pull ghcr.io/kivy/buildozer:latest
+
+      - name: Build APK with official Buildozer container
+        run: |
+          docker run --rm \
+            --volume "$PWD/DONG_Mobile_v0_1:/home/user/hostcwd" \
+            ghcr.io/kivy/buildozer:latest \
+            android debug
+
+      - name: List APK output
+        if: always()
+        run: find DONG_Mobile_v0_1/bin -maxdepth 1 -type f -print 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DONG-Mobile-debug-apk
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: DONG_Mobile_v0_1/bin/*.apk
           if-no-files-found: error
