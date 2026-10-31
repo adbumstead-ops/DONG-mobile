@@ -5,23 +5,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 90
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
 
       - name: Verify mobile source ZIP
         run: |
@@ -31,41 +20,24 @@ jobs:
       - name: Unpack mobile source
         run: unzip -q -o DONG_Mobile_v0_1.zip
 
-      - name: Install Android build dependencies
+      - name: Show Android build configuration
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            git zip unzip autoconf automake libtool pkg-config zlib1g-dev \
-            libncurses-dev libncursesw5-dev libtinfo6 cmake libffi-dev \
-            libssl-dev ccache autopoint gettext
+          echo "--- buildozer.spec ---"
+          cat DONG_Mobile_v0_1/buildozer.spec
+          echo "----------------------"
 
-      - name: Ensure Rust toolchain
-        run: |
-          if ! command -v rustc >/dev/null 2>&1; then
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          fi
-
-      - name: Install Buildozer and Cython
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install buildozer "cython==0.29.34"
-          which python
-          python --version
-          which cython
-          cython --version
-          which buildozer
-          buildozer --version
-
-      - name: Build debug APK
-        working-directory: DONG_Mobile_v0_1
-        env:
-          PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: '0'
-        run: buildozer -v android debug
+      - name: Build APK with Buildozer
+        id: buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        with:
+          command: buildozer -v android debug
+          repository_root: .
+          workdir: DONG_Mobile_v0_1
+          buildozer_version: stable
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DONG-Mobile-debug-apk
-          path: DONG_Mobile_v0_1/bin/*.apk
+          path: ${{ steps.buildozer.outputs.filename }}
           if-no-files-found: error
