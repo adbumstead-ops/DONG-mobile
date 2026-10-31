@@ -1,0 +1,46 @@
+name: Build Android Debug APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify mobile source ZIP
+        run: |
+          test -f DONG_Mobile_v0_1.zip || (echo "DONG_Mobile_v0_1.zip is missing from the repository root." && exit 1)
+          unzip -t DONG_Mobile_v0_1.zip
+
+      - name: Unpack mobile source
+        run: unzip -q -o DONG_Mobile_v0_1.zip
+
+      - name: Install Android build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk python3-pip python3-venv \
+            autoconf automake libtool pkg-config zlib1g-dev libncurses-dev \
+            libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev ccache
+
+      - name: Install Buildozer
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip setuptools wheel
+          .venv/bin/pip install buildozer cython
+
+      - name: Build debug APK
+        working-directory: DONG_Mobile_v0_1
+        run: ../.venv/bin/buildozer android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DONG-Mobile-debug-apk
+          path: DONG_Mobile_v0_1/bin/*.apk
+          if-no-files-found: error
