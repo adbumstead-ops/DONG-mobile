@@ -14,16 +14,16 @@ jobs:
 
       - name: Verify mobile source ZIP
         run: |
-          test -f DONG_Mobile_v0_1.zip || (echo "DONG_Mobile_v0_1.zip is missing from the repository root." && exit 1)
-          unzip -t DONG_Mobile_v0_1.zip
+          test -f DONG_Mobile_v0_2.zip || (echo "DONG_Mobile_v0_2.zip is missing from the repository root." && exit 1)
+          unzip -t DONG_Mobile_v0_2.zip
 
       - name: Unpack mobile source
-        run: unzip -q -o DONG_Mobile_v0_1.zip
+        run: unzip -q -o DONG_Mobile_v0_2.zip
 
       - name: Show Android build configuration
         run: |
           echo "--- buildozer.spec ---"
-          cat DONG_Mobile_v0_1/buildozer.spec
+          cat DONG_Mobile_v0_2/buildozer.spec
           echo "----------------------"
 
       - name: Pull official Buildozer image
@@ -32,17 +32,17 @@ jobs:
       - name: Build APK with official Buildozer container
         run: |
           docker run --rm \
-            --volume "$PWD/DONG_Mobile_v0_1:/home/user/hostcwd" \
+            --volume "$PWD/DONG_Mobile_v0_2:/home/user/hostcwd" \
             ghcr.io/kivy/buildozer:latest \
             android debug
 
       - name: List APK output
         if: always()
-        run: find DONG_Mobile_v0_1/bin -maxdepth 1 -type f -print 2>/dev/null || true
+        run: find DONG_Mobile_v0_2/bin -maxdepth 1 -type f -print 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: DONG-Mobile-debug-apk
-          path: DONG_Mobile_v0_1/bin/*.apk
+          name: DONG-Mobile-v0.2-debug-apk
+          path: DONG_Mobile_v0_2/bin/*.apk
           if-no-files-found: error
