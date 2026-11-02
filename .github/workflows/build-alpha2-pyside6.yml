@@ -61,6 +61,16 @@ jobs:
           packages: 'platform-tools'
           log-accepted-android-sdk-licenses: 'false'
 
+      - name: Add Buildozer SDK compatibility paths
+        shell: bash
+        run: |
+          mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+          ln -sfn "$(command -v sdkmanager)" "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+          if command -v avdmanager >/dev/null 2>&1; then
+            ln -sfn "$(command -v avdmanager)" "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+          fi
+          ls -l "$ANDROID_SDK_ROOT/tools/bin"
+
       - name: Install required Android SDK and NDK
         shell: bash
         run: |
