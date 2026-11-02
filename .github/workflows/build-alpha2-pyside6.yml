@@ -82,10 +82,13 @@ jobs:
           test -d "$ANDROID_SDK_ROOT/ndk/28.2.13676358"
 
       - name: Build ARM64 debug APK with Qt for Python
+        id: qt_build
         working-directory: android-src/Dong_Mobile_v0_17_14_a2
         env:
           PIP_DISABLE_PIP_VERSION_CHECK: '1'
+        shell: bash
         run: |
+          set -o pipefail
           pyside6-android-deploy \
             --name 'DONG Mobile' \
             --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
@@ -94,23 +97,75 @@ jobs:
             --sdk-path="$ANDROID_SDK_ROOT" \
             --keep-deployment-files \
             --force \
-            --verbose
+            --verbose 2>&1 | tee "$GITHUB_WORKSPACE/pyside-android-deploy.log"
+
+      - name: Inspect Android deployment output
+        if: always()
+        shell: bash
+        run: |
+          echo '=== APK/AAB files anywhere in workspace ==='
+          find "$GITHUB_WORKSPACE" -type f \( -name '*.apk' -o -name '*.aab' \) -print || true
+          echo '=== Deployment/build directories ==='
+          find "$GITHUB_WORKSPACE/android-src" -type d \( -name deployment -o -name .buildozer -o -name bin -o -name build \) -print 2>/dev/null | head -n 200 || true
+          echo '=== Build specs and logs ==='
+          find "$GITHUB_WORKSPACE/android-src" -type f \( -name 'buildozer.spec' -o -name 'pysidedeploy.spec' -o -name '*.log' \) -print 2>/dev/null | head -n 300 || true
+          echo '=== Generated project tree (selected depth) ==='
+          find "$GITHUB_WORKSPACE/android-src/Dong_Mobile_v0_17_14_a2" -maxdepth 4 -type f -print 2>/dev/null | sort | head -n 500 || true
+
+      - name: Retry generated Buildozer project directly if APK is missing
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          if find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print -quit | grep -q .; then
+            echo 'APK already exists; direct Buildozer retry is not needed.'
+            exit 0
+          fi
+
+          SPEC="$(find "$GITHUB_WORKSPACE/android-src/Dong_Mobile_v0_17_14_a2" -type f -name 'buildozer.spec' -print -quit 2>/dev/null || true)"
+          if [ -z "$SPEC" ]; then
+            echo 'No generated buildozer.spec was found. See diagnostics artifact for Qt deploy output.'
+            exit 0
+          fi
+
+          SPEC_DIR="$(dirname "$SPEC")"
+          echo "Retrying Buildozer directly from: $SPEC_DIR"
+          cd "$SPEC_DIR"
+          buildozer -v android debug 2>&1 | tee "$GITHUB_WORKSPACE/buildozer-direct.log" || true
 
       - name: Collect APK
         if: always()
+        shell: bash
         run: |
-          echo 'APK files found:'
-          find android-src -type f -name '*.apk' -print || true
-          mkdir -p apk-output
-          APK="$(find android-src -type f -name '*.apk' | head -n 1)"
-          test -n "$APK"
-          cp "$APK" apk-output/DONG_Mobile_v0_17_14_a2-arm64-debug.apk
-          ls -lh apk-output
+          echo 'APK files found across entire workspace:'
+          find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print || true
+          mkdir -p "$GITHUB_WORKSPACE/apk-output"
+          APK="$(find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo 'ERROR: No APK was produced.'
+            exit 1
+          fi
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/DONG_Mobile_v0_17_14_a2-arm64-debug.apk"
+          ls -lh "$GITHUB_WORKSPACE/apk-output"
 
       - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: DONG-Mobile-v0.17.14-a2-APK
           path: apk-output/DONG_Mobile_v0_17_14_a2-arm64-debug.apk
           if-no-files-found: error
           compression-level: 0
+
+      - name: Upload Android build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DONG-Mobile-Android-build-diagnostics
+          path: |
+            pyside-android-deploy.log
+            buildozer-direct.log
+            android-src/Dong_Mobile_v0_17_14_a2/pysidedeploy.spec
+            android-src/Dong_Mobile_v0_17_14_a2/**/buildozer.spec
+          if-no-files-found: warn
+          retention-days: 7
