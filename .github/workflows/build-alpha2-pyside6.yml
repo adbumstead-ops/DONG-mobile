@@ -26,7 +26,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install 'PySide6==6.12.0'
-          pyside6-android-deploy --help >/dev/null
 
       - name: Verify and unpack Alpha 2 source
         run: |
@@ -41,18 +40,18 @@ jobs:
         run: |
           mkdir -p android-wheels
           curl -fL --retry 4 --retry-delay 3 \
-            -o android-wheels/pyside6-android-aarch64.whl \
+            -o android-wheels/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl \
             https://download.qt.io/official_releases/QtForPython/pyside6/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl
           curl -fL --retry 4 --retry-delay 3 \
-            -o android-wheels/shiboken6-android-aarch64.whl \
+            -o android-wheels/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl \
             https://download.qt.io/official_releases/QtForPython/shiboken6/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl
           ls -lh android-wheels
 
       - name: Install required Android SDK and NDK
         shell: bash
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
             'platform-tools' \
             'platforms;android-35' \
             'build-tools;35.0.0' \
@@ -65,8 +64,8 @@ jobs:
         run: |
           pyside6-android-deploy \
             --name 'DONG Mobile' \
-            --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-android-aarch64.whl" \
-            --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-android-aarch64.whl" \
+            --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
+            --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
             --ndk-path="$ANDROID_HOME/ndk/28.2.13676358" \
             --sdk-path="$ANDROID_HOME" \
             --keep-deployment-files \
