@@ -47,15 +47,21 @@ jobs:
             https://download.qt.io/official_releases/QtForPython/shiboken6/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl
           ls -lh android-wheels
 
+      - name: Set up Android command-line tools
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: 'false'
+
       - name: Install required Android SDK and NDK
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
-            'platform-tools' \
             'platforms;android-35' \
             'build-tools;35.0.0' \
             'ndk;28.2.13676358'
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          test -d "$ANDROID_SDK_ROOT/ndk/28.2.13676358"
 
       - name: Build ARM64 debug APK with Qt for Python
         working-directory: android-src/Dong_Mobile_v0_17_14_a2
@@ -66,8 +72,8 @@ jobs:
             --name 'DONG Mobile' \
             --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
             --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
-            --ndk-path="$ANDROID_HOME/ndk/28.2.13676358" \
-            --sdk-path="$ANDROID_HOME" \
+            --ndk-path="$ANDROID_SDK_ROOT/ndk/28.2.13676358" \
+            --sdk-path="$ANDROID_SDK_ROOT" \
             --keep-deployment-files \
             --force \
             --verbose
