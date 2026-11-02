@@ -20,12 +20,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'
 
       - name: Install host Qt for Python tooling
         run: |
           python -m pip install --upgrade pip
           python -m pip install 'PySide6==6.12.0'
+          ANDROID_REQS="$(python - <<'PY'
+          from pathlib import Path
+          import PySide6
+          print(Path(PySide6.__file__).resolve().parent / 'scripts' / 'requirements-android.txt')
+          PY
+          )"
+          echo "Installing Qt Android deploy requirements from $ANDROID_REQS"
+          python -m pip install -r "$ANDROID_REQS"
 
       - name: Verify and unpack Alpha 2 source
         run: |
