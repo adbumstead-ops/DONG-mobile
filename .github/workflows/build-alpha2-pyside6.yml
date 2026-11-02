@@ -22,6 +22,33 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install native Android build prerequisites
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ant \
+            autoconf \
+            automake \
+            autopoint \
+            ccache \
+            cmake \
+            g++ \
+            gcc \
+            git \
+            lbzip2 \
+            libffi-dev \
+            libltdl-dev \
+            libtool \
+            libssl-dev \
+            make \
+            patch \
+            pkg-config \
+            python3-dev \
+            unzip \
+            wget \
+            zip
+
       - name: Install host Qt for Python tooling
         run: |
           python -m pip install --upgrade pip
@@ -74,6 +101,7 @@ jobs:
       - name: Install required Android SDK and NDK
         shell: bash
         run: |
+          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
             'platforms;android-35' \
             'build-tools;35.0.0' \
@@ -90,7 +118,7 @@ jobs:
         run: |
           set -o pipefail
           pyside6-android-deploy \
-            --name 'DONG Mobile' \
+            --name 'DONGMobile' \
             --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
             --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-6.12.0-6.12.0-cp310-abi3-android_aarch64.whl" \
             --ndk-path="$ANDROID_SDK_ROOT/ndk/28.2.13676358" \
@@ -149,12 +177,12 @@ jobs:
           ls -lh "$GITHUB_WORKSPACE/apk-output"
 
       - name: Upload APK artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: DONG-Mobile-v0.17.14-a2-APK
           path: apk-output/DONG_Mobile_v0_17_14_a2-arm64-debug.apk
-          if-no-files-found: error
+          if-no-files-found: warn
           compression-level: 0
 
       - name: Upload Android build diagnostics
