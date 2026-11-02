@@ -12,19 +12,36 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Verify mobile source ZIP
+      - name: Detect newest mobile source ZIP
+        shell: bash
         run: |
-          test -f DONG_Mobile_v0_2.zip || (echo "DONG_Mobile_v0_2.zip is missing from the repository root." && exit 1)
-          unzip -t DONG_Mobile_v0_2.zip
+          shopt -s nullglob
+          files=(DONG_Mobile_v*.zip)
+          if (( ${#files[@]} == 0 )); then
+            echo "No DONG_Mobile_v*.zip source archive found in the repository root."
+            exit 1
+          fi
+
+          SOURCE_ZIP="$(printf '%s\n' "${files[@]}" | sort -V | tail -n 1)"
+          SOURCE_DIR="${SOURCE_ZIP%.zip}"
+          VERSION="${SOURCE_DIR#DONG_Mobile_}"
+
+          echo "SOURCE_ZIP=$SOURCE_ZIP" >> "$GITHUB_ENV"
+          echo "SOURCE_DIR=$SOURCE_DIR" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=DONG-Mobile-${VERSION}-debug-apk" >> "$GITHUB_ENV"
+          echo "Building newest source: $SOURCE_ZIP"
+
+      - name: Verify mobile source ZIP
+        run: unzip -t "$SOURCE_ZIP"
 
       - name: Unpack mobile source
-        run: unzip -q -o DONG_Mobile_v0_2.zip
+        run: unzip -q -o "$SOURCE_ZIP"
 
       - name: Show Android build configuration
         run: |
-          echo "--- buildozer.spec ---"
-          cat DONG_Mobile_v0_2/buildozer.spec
-          echo "----------------------"
+          echo "--- $SOURCE_DIR/buildozer.spec ---"
+          cat "$SOURCE_DIR/buildozer.spec"
+          echo "--------------------------------"
 
       - name: Pull official Buildozer image
         run: docker pull ghcr.io/kivy/buildozer:latest
@@ -32,17 +49,17 @@ jobs:
       - name: Build APK with official Buildozer container
         run: |
           docker run --rm \
-            --volume "$PWD/DONG_Mobile_v0_2:/home/user/hostcwd" \
+            --volume "$PWD/$SOURCE_DIR:/home/user/hostcwd" \
             ghcr.io/kivy/buildozer:latest \
             android debug
 
       - name: List APK output
         if: always()
-        run: find DONG_Mobile_v0_2/bin -maxdepth 1 -type f -print 2>/dev/null || true
+        run: find "$SOURCE_DIR/bin" -maxdepth 1 -type f -print 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: DONG-Mobile-v0.2-debug-apk
-          path: DONG_Mobile_v0_2/bin/*.apk
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.SOURCE_DIR }}/bin/*.apk
           if-no-files-found: error
